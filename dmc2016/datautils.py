@@ -1,16 +1,18 @@
 import pandas as pd
 
-
-def load_orders_train(path='dmc2016/datasets'):
-    return load_data(path + '/orders_train.txt')
+PATH = 'dmc2016/datasets/'
 
 
-def load_orders_class(path='dmc2016/datasets'):
-    return load_data(path + '/orders_class.txt')
+def load_orders_train():
+    return load_data('orders_train.txt')
+
+
+def load_orders_class():
+    return load_data('orders_class.txt')
 
 
 def load_data(file_name):
-    return pd.read_csv(file_name, sep=';')
+    return pd.read_csv(PATH + file_name, sep=';')
 
 
 def separate_date(dataframe):
@@ -27,10 +29,10 @@ def convert_date2dataframe(year, month, day):
 
 
 def write_date2csv(filename, dataframe):
-    dataframe.to_csv(filename)
+    dataframe.to_csv(filename, index=False)
 
 
 def process_date(dataframe, filename='date.csv'):
     year, month, day = separate_date(dataframe)
     df = convert_date2dataframe(year, month, day)
-    write_date2csv(filename, df)
+    write_date2csv(PATH + filename, df)

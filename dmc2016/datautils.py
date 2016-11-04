@@ -48,6 +48,7 @@ def preprocess_data():
 def cleanup_data(dataframe):
     dataframe = cleanup_quantity(dataframe)
     dataframe = cleanup_price(dataframe)
+    dataframe = cleanup_rrp(dataframe)
     return dataframe
 
 
@@ -62,12 +63,32 @@ def cleanup_price(dataframe):
     dataframe = dataframe[dataframe['price'] > 0]
     dataframe.reset_index(inplace=True, drop=True)
     # group by price and remove prices with count < 100
-    grouped_price = dataframe['price'].groupby(dataframe['price'])
-    forbidden_prices = []
-    for name, group in grouped_price:
-        indexes = [index for index in group.index]
-        if len(indexes) > 100:
-            forbidden_prices.append(indexes)
-    forbidden_prices = reduce(operator.add, forbidden_prices)
-    dataframe = dataframe.iloc[forbidden_prices]
+    allowed_prices = group_item_index(dataframe, 'price', lambda item_size: item_size > 100)
+    dataframe = dataframe.iloc[allowed_prices]
     return dataframe
+
+
+def cleanup_rrp(dataframe):
+    dataframe = dataframe[dataframe['rrp'] > 0]
+    dataframe.reset_index(inplace=True, drop=True)
+    allowed_rrps = group_item_index(dataframe, 'rrp', lambda item_size: item_size > 100)
+    dataframe = dataframe.iloc[allowed_rrps]
+    return dataframe
+
+
+def group_item_index(dataframe, column, condition):
+    grouped_items = dataframe[column].groupby(dataframe[column])
+    allowed_items = []
+    for name, group in grouped_items:
+        indexes = [index for index in group.index]
+        group_part_size = len(indexes)
+        if condition(group_part_size):
+            allowed_items.append(indexes)
+    return reduce(operator.add, allowed_items)
+
+
+if __name__ == '__main__':
+    PATH = 'datasets/'
+    df = load_orders_train()
+    df = cleanup_price(df)
+    print(df)

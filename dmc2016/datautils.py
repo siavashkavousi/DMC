@@ -36,3 +36,19 @@ def process_date(dataframe, filename='date.csv'):
     year, month, day = separate_date(dataframe)
     df = convert_date2dataframe(year, month, day)
     write_date2csv(PATH + filename, df)
+
+
+def preprocess_data():
+    pass
+
+
+def cleanup_data(dataframe):
+    dataframe = cleanup_quantity(dataframe)
+    return dataframe
+
+
+def cleanup_quantity(dataframe):
+    dataframe = dataframe[dataframe['quantity'] > 0]
+    dataframe.reset_index(inplace=True)
+    dataframe = dataframe[dataframe['quantity'] < 6]
+    return dataframe

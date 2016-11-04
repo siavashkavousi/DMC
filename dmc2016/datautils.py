@@ -59,19 +59,19 @@ def cleanup_quantity(dataframe):
     return dataframe
 
 
-def cleanup_price(dataframe):
+def cleanup_price(dataframe, allowed_price_counts=lambda item_size: item_size > 100):
     dataframe = dataframe[dataframe['price'] > 0]
     dataframe.reset_index(inplace=True, drop=True)
     # group by price and remove prices with count < 100
-    allowed_prices = group_item_index(dataframe, 'price', lambda item_size: item_size > 100)
+    allowed_prices = group_item_index(dataframe, 'price', allowed_price_counts)
     dataframe = dataframe.iloc[allowed_prices]
     return dataframe
 
 
-def cleanup_rrp(dataframe):
+def cleanup_rrp(dataframe, allowed_rrp_counts=lambda item_size: item_size > 100):
     dataframe = dataframe[dataframe['rrp'] > 0]
     dataframe.reset_index(inplace=True, drop=True)
-    allowed_rrps = group_item_index(dataframe, 'rrp', lambda item_size: item_size > 100)
+    allowed_rrps = group_item_index(dataframe, 'rrp', allowed_rrp_counts)
     dataframe = dataframe.iloc[allowed_rrps]
     return dataframe
 

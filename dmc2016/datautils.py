@@ -1,3 +1,6 @@
+import operator
+from functools import reduce
+
 import pandas as pd
 
 PATH = 'dmc2016/datasets/'
@@ -44,11 +47,27 @@ def preprocess_data():
 
 def cleanup_data(dataframe):
     dataframe = cleanup_quantity(dataframe)
+    dataframe = cleanup_price(dataframe)
     return dataframe
 
 
 def cleanup_quantity(dataframe):
     dataframe = dataframe[dataframe['quantity'] > 0]
-    dataframe.reset_index(inplace=True)
+    dataframe.reset_index(inplace=True, drop=True)
     dataframe = dataframe[dataframe['quantity'] < 6]
+    return dataframe
+
+
+def cleanup_price(dataframe):
+    dataframe = dataframe[dataframe['price'] > 0]
+    dataframe.reset_index(inplace=True, drop=True)
+    # group by price and remove prices with count < 100
+    grouped_price = dataframe['price'].groupby(dataframe['price'])
+    forbidden_prices = []
+    for name, group in grouped_price:
+        indexes = [index for index in group.index]
+        if len(indexes) > 100:
+            forbidden_prices.append(indexes)
+    forbidden_prices = reduce(operator.add, forbidden_prices)
+    dataframe = dataframe.iloc[forbidden_prices]
     return dataframe

@@ -76,6 +76,25 @@ def cleanup_rrp(dataframe, allowed_rrp_counts=lambda item_size: item_size > 100)
     return dataframe
 
 
+def show_nasty_customers(dataframe, condition):
+    grouped_items = dataframe['returnQuantity'].groupby(dataframe['customerID'])
+    return show_most_unwanted_item(grouped_items, condition)
+
+
+def show_most_unwanted_colors(dataframe, condition):
+    grouped_items = dataframe['returnQuantity'].groupby(dataframe['colorCode'])
+    return show_most_unwanted_item(grouped_items, condition)
+
+
+def show_most_unwanted_item(grouped_items, condition):
+    nasty_items = []
+    for name, group in grouped_items:
+        returned_item = sum(group)
+        if condition(returned_item):
+            nasty_items.append(name)
+    return nasty_items
+
+
 def group_item_index(dataframe, column, condition):
     grouped_items = dataframe[column].groupby(dataframe[column])
     allowed_items = []
@@ -90,5 +109,3 @@ def group_item_index(dataframe, column, condition):
 if __name__ == '__main__':
     PATH = 'datasets/'
     df = load_orders_train()
-    df = cleanup_price(df)
-    print(df)

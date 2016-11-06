@@ -76,14 +76,23 @@ def cleanup_rrp(dataframe, allowed_rrp_counts=lambda item_size: item_size > 100)
     return dataframe
 
 
-def show_nasty_customers(dataframe, condition):
+def cleanup_sizecode(dataframe, allowed_sizecodes_counts=lambda item_size: item_size > 2000):
+    allowed_sizecodes = group_item_index(dataframe, 'sizeCode', allowed_sizecodes_counts)
+    return dataframe.iloc[allowed_sizecodes]
+
+
+def filter_nasty_customers(dataframe, condition):
     grouped_items = dataframe['returnQuantity'].groupby(dataframe['customerID'])
     return show_most_unwanted_item(grouped_items, condition)
 
 
-def show_most_unwanted_colors(dataframe, condition):
+def filter_most_unwanted_colors(dataframe, condition):
     grouped_items = dataframe['returnQuantity'].groupby(dataframe['colorCode'])
     return show_most_unwanted_item(grouped_items, condition)
+
+
+def compare_columns(dataframe, column1, column2, condition):
+    return dataframe[condition(dataframe[column1], dataframe[column2])]
 
 
 def show_most_unwanted_item(grouped_items, condition):

@@ -3,7 +3,7 @@ from functools import reduce
 
 import pandas as pd
 
-PATH = 'dmc2016/datasets/'
+PATH = 'datasets/'
 
 
 def load_orders_train():
@@ -41,14 +41,21 @@ def process_date(dataframe, filename='date.csv'):
     write_date2csv(PATH + filename, df)
 
 
-def preprocess_data():
-    pass
+def preprocess_data(dataframe):
+    cleanup_data(dataframe)
+    dataframe = convert_items_content(dataframe, 'articleID')
+    dataframe = convert_items_content(dataframe, 'customerID')
+    dataframe = convert_items_content(dataframe, 'sizeCode')
+    return dataframe
 
 
 def cleanup_data(dataframe):
     dataframe = cleanup_quantity(dataframe)
     dataframe = cleanup_price(dataframe)
     dataframe = cleanup_rrp(dataframe)
+    dataframe = cleanup_sizecode(dataframe)
+    dataframe = cleanup_articleid(dataframe)
+    dataframe = compare_columns(dataframe, 'price', 'rrp', lambda x, y: x <= y)
     return dataframe
 
 
@@ -77,8 +84,15 @@ def cleanup_rrp(dataframe, allowed_rrp_counts=lambda item_size: item_size > 100)
 
 
 def cleanup_sizecode(dataframe, allowed_sizecodes_counts=lambda item_size: item_size > 2000):
+    dataframe.reset_index(inplace=True, drop=True)
     allowed_sizecodes = group_item_index(dataframe, 'sizeCode', allowed_sizecodes_counts)
     return dataframe.iloc[allowed_sizecodes]
+
+
+def cleanup_articleid(dataframe, allowed_articleid_counts=lambda item_size: item_size > 20):
+    dataframe.reset_index(inplace=True, drop=True)
+    allowed_articleid = group_item_index(dataframe, 'articleID', allowed_articleid_counts)
+    return dataframe.iloc[allowed_articleid]
 
 
 def filter_nasty_customers(dataframe, condition):
@@ -115,6 +129,20 @@ def group_item_index(dataframe, column, condition):
     return reduce(operator.add, allowed_items)
 
 
+def convert_items_content(dataframe, column):
+    distinct_items_map = map_items_content(dataframe, column)
+    dataframe[column] = dataframe[column].map(lambda column_value: distinct_items_map.get(column_value))
+    return dataframe
+
+
+def map_items_content(dataframe, column):
+    grouped_items = dataframe[column].groupby(dataframe[column])
+    distinct_items = [name for name, _ in grouped_items]
+    map_distinct_items = {value: key for key, value in enumerate(distinct_items)}
+    return map_distinct_items
+
+
 if __name__ == '__main__':
     PATH = 'datasets/'
     df = load_orders_train()
+    print(preprocess_data(df))

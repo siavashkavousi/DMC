@@ -1,9 +1,16 @@
 import operator
+import pickle
 from functools import reduce
 
 import pandas as pd
 
 PATH = 'datasets/'
+
+
+def load_orders_train_data():
+    with open(PATH + 'orders_train', 'rb') as f:
+        data = pickle.load(f, encoding='bytes')
+    return data['data'], data['labels']
 
 
 def load_orders_train():
@@ -31,14 +38,14 @@ def convert_date2dataframe(year, month, day):
     return pd.DataFrame(d)
 
 
-def write_date2csv(filename, dataframe):
+def export_date2csv(filename, dataframe):
     dataframe.to_csv(filename, index=False)
 
 
 def process_date(dataframe, filename='date.csv'):
     year, month, day = separate_date(dataframe)
     df = convert_date2dataframe(year, month, day)
-    write_date2csv(PATH + filename, df)
+    export_date2csv(PATH + filename, df)
 
 
 def preprocess_data(dataframe):
@@ -142,7 +149,23 @@ def map_items_content(dataframe, column):
     return map_distinct_items
 
 
+def export_dataframe_as_nparray(filename, dataframe, columns):
+    if columns is None:
+        data = dataframe.iloc[:, :dataframe.shape[1] - 1]
+        labels = dataframe.iloc[:, dataframe.shape[1] - 1]
+    else:
+        data = dataframe.loc[:, columns]
+        labels = dataframe.iloc[:, dataframe.shape[1] - 1]
+
+    with open(PATH + filename, 'wb') as f:
+        pickle.dump({'data': data.values, 'labels': labels.values}, f)
+
+
 if __name__ == '__main__':
-    PATH = 'datasets/'
-    df = load_orders_train()
-    print(preprocess_data(df))
+    data_df = load_orders_train()
+    data_df = preprocess_data(data_df)
+    export_dataframe_as_nparray(
+        'orders_train',
+        data_df,
+        ['articleID', 'colorCode', 'sizeCode', 'quantity', 'price', 'rrp', 'customerID']
+    )

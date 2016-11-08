@@ -161,6 +161,15 @@ def export_dataframe_as_nparray(filename, dataframe, columns):
         pickle.dump({'data': data.values, 'labels': labels.values}, f)
 
 
+def check_isnull(dataframe, columns):
+    for column in columns:
+        df = pd.isnull(dataframe)
+        if df.groupby(column).size() == 1:
+            return False
+        else:
+            return True
+
+
 if __name__ == '__main__':
     data_df = load_orders_train()
     data_df = preprocess_data(data_df)

@@ -53,6 +53,7 @@ def preprocess_data(dataframe):
     dataframe = convert_items_content(dataframe, 'articleID')
     dataframe = convert_items_content(dataframe, 'customerID')
     dataframe = convert_items_content(dataframe, 'sizeCode')
+    dataframe = dataframe.dropna()
     return dataframe
 
 
@@ -172,6 +173,9 @@ def check_isnull(dataframe, columns):
 if __name__ == '__main__':
     data_df = load_orders_train()
     data_df = preprocess_data(data_df)
+    for nullable in check_isnull(data_df,
+                                 ['articleID', 'colorCode', 'sizeCode', 'quantity', 'price', 'rrp', 'customerID']):
+        print(nullable)
     export_dataframe_as_nparray(
         'orders_train',
         data_df,

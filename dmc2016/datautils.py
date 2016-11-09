@@ -143,8 +143,7 @@ def convert_items_content(dataframe, column):
 
 
 def map_items_content(dataframe, column):
-    grouped_items = dataframe[column].groupby(dataframe[column])
-    distinct_items = [name for name, _ in grouped_items]
+    distinct_items = dataframe[column].unique()
     map_distinct_items = {value: key for key, value in enumerate(distinct_items)}
     return map_distinct_items
 
@@ -162,12 +161,12 @@ def export_dataframe_as_nparray(filename, dataframe, columns):
 
 
 def check_isnull(dataframe, columns):
+    df = pd.isnull(dataframe)
     for column in columns:
-        df = pd.isnull(dataframe)
-        if df.groupby(column).size() == 1:
-            return False
+        if len(df.groupby(column).size()) == 1:
+            yield {column: False}
         else:
-            return True
+            yield {column: True}
 
 
 if __name__ == '__main__':

@@ -1,10 +1,19 @@
 import operator
 import pickle
+from enum import Enum
 from functools import reduce
+from math import floor
 
 import pandas as pd
 
 PATH = 'datasets/'
+
+
+class Column(Enum):
+    quantity = 'quantity'
+    return_quantity = 'returnQuantity'
+    predicted_quantity = 'predictedQuantity'
+    article_id = 'articleID'
 
 
 def load_orders_train_data():
@@ -21,31 +30,12 @@ def load_orders_class():
     return load_data('orders_class.txt')
 
 
+def load_real_class():
+    return load_data('real_class.txt')
+
+
 def load_data(file_name):
     return pd.read_csv(PATH + file_name, sep=';')
-
-
-def separate_date(dataframe):
-    date = dataframe['orderDate'].str.split('-')
-    year = [i[0] for i in date]
-    month = [i[1] for i in date]
-    day = [i[2] for i in date]
-    return year, month, day
-
-
-def convert_date2dataframe(year, month, day):
-    d = {'year': year, 'month': month, 'day': day}
-    return pd.DataFrame(d)
-
-
-def export_date2csv(filename, dataframe):
-    dataframe.to_csv(filename, index=False)
-
-
-def process_date(dataframe, filename='date.csv'):
-    year, month, day = separate_date(dataframe)
-    df = convert_date2dataframe(year, month, day)
-    export_date2csv(PATH + filename, df)
 
 
 def preprocess_data(dataframe):
@@ -149,16 +139,20 @@ def map_items_content(dataframe, column):
     return map_distinct_items
 
 
-def export_dataframe_as_nparray(filename, dataframe, columns):
-    if columns is None:
-        data = dataframe.iloc[:, :dataframe.shape[1] - 1]
-        labels = dataframe.iloc[:, dataframe.shape[1] - 1]
+def convert_dataframe2nparray(df, *columns):
+    if len(columns) > 1:
+        data = df.loc[:, columns]
+        labels = df.iloc[:, df.shape[1] - 1]
     else:
-        data = dataframe.loc[:, columns]
-        labels = dataframe.iloc[:, dataframe.shape[1] - 1]
+        data = df.iloc[:, :df.shape[1] - 1]
+        labels = df.iloc[:, df.shape[1] - 1]
+    return data.values, labels.values
 
+
+def export_dataframe_as_nparray(filename, df, *columns):
+    data, labels = convert_dataframe2nparray(df, *columns)
     with open(PATH + filename, 'wb') as f:
-        pickle.dump({'data': data.values, 'labels': labels.values}, f)
+        pickle.dump({'data': data, 'labels': labels}, f)
 
 
 def check_isnull(dataframe, columns):
@@ -170,6 +164,13 @@ def check_isnull(dataframe, columns):
             yield {column: True}
 
 
+def split_test_train(df, test_size):
+    split_index = floor(df.shape[0] * test_size)
+    df_train = df[split_index + 1:].copy()
+    df_test = df[:split_index].copy()
+    return df_train, df_test
+
+
 if __name__ == '__main__':
     data_df = load_orders_train()
     data_df = preprocess_data(data_df)
@@ -179,5 +180,5 @@ if __name__ == '__main__':
     export_dataframe_as_nparray(
         'orders_train',
         data_df,
-        ['articleID', 'colorCode', 'sizeCode', 'quantity', 'price', 'rrp', 'customerID']
+        'articleID', 'colorCode', 'sizeCode', 'quantity', 'price', 'rrp', 'customerID'
     )

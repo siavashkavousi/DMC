@@ -1,8 +1,6 @@
-import operator
 import pickle
 from collections import defaultdict
 from enum import Enum
-from functools import reduce
 from math import floor
 
 import pandas as pd
@@ -34,6 +32,7 @@ class Column(Enum):
     payment_method = 'paymentMethod'
     return_quantity = 'returnQuantity'
     # new columns
+    index = 'index'
     predicted_quantity = 'predictedQuantity'
 
 
@@ -63,31 +62,40 @@ class DataCleaner(object):
     def __init__(self, df):
         self.df = df
 
+    def process_cleanup(self):
+        self.cleanup_quantity()
+        self.cleanup_price()
+        self.cleanup_rrp()
+        self.cleanup_size_code()
+        self.cleanup_article_id()
+
     def cleanup_quantity(self):
         self.df = self.df[self.df['quantity'] > 0]
         self.df = self.df[self.df['quantity'] < 6]
 
-    def cleanup_price(self, allowed_price_counts=lambda item_size: item_size > 100):
-        self.df = self.df[self.df['price'] > 0]
-        self.df.reset_index(inplace=True)
-        allowed_prices = self._group_item_index('price', allowed_price_counts)
-        self.df = self.df.iloc[allowed_prices]
+    def cleanup_price(self, blocked_price_counts=lambda item_size: item_size < 100):
+        self.df = self.df[self.df[Column.price.value] > 0]
+        for blocked_price in self._apply_on_groups_items(Column.price.value, blocked_price_counts):
+            self.df = self.df[self.df[Column.price.value] != blocked_price]
 
-    def cleanup_rrp(self, allowed_rrp_counts=lambda item_size: item_size > 100):
-        self.df = self.df[self.df['rrp'] > 0]
-        self.df.reset_index(inplace=True, drop=True)
-        allowed_rrps = group_item_index(self.df, 'rrp', allowed_rrp_counts)
-        self.df = self.df.iloc[allowed_rrps]
+    def cleanup_rrp(self, blocked_rrp_counts=lambda item_size: item_size < 150):
+        self.df = self.df[self.df[Column.rrp.value] > 0]
+        for blocked_rrp in self._apply_on_groups_items(Column.rrp.value, blocked_rrp_counts):
+            self.df = self.df[self.df[Column.rrp.value] != blocked_rrp]
 
-    def _group_item_index(self, column, condition):
-        grouped_items = self.df[column].groupby(self.df[column])
-        allowed_items = []
-        for name, group in grouped_items:
-            indexes = [index for index in group.index]
-            group_part_size = len(indexes)
-            if condition(group_part_size):
-                allowed_items.append(indexes)
-        return reduce(operator.add, allowed_items)
+    def cleanup_size_code(self, blocked_size_codes_counts=lambda item_size: item_size < 2000):
+        for blocked_size_code in self._apply_on_groups_items(Column.size_code.value, blocked_size_codes_counts):
+            self.df = self.df[self.df[Column.size_code.value] != blocked_size_code]
+
+    def cleanup_article_id(self, blocked_article_id_counts=lambda item_size: item_size < 20):
+        for blocked_article_id in self._apply_on_groups_items(Column.article_id.value, blocked_article_id_counts):
+            self.df = self.df[self.df[Column.article_id.value] != blocked_article_id]
+
+    def _apply_on_groups_items(self, column, condition):
+        grouped_items = self.df[column].groupby(self.df[column]).size()
+        for index, item in enumerate(grouped_items):
+            if condition(item):
+                yield grouped_items.index[index]
 
 
 def preprocess_data(df_train, df_test):
@@ -97,49 +105,8 @@ def preprocess_data(df_train, df_test):
 
 
 def cleanup_data(dataframe):
-    dataframe = cleanup_quantity(dataframe)
-    dataframe = cleanup_price(dataframe)
-    dataframe = cleanup_rrp(dataframe)
-    dataframe = cleanup_sizecode(dataframe)
-    dataframe = cleanup_articleid(dataframe)
     dataframe = compare_columns(dataframe, 'price', 'rrp', lambda x, y: x <= y)
     return dataframe
-
-
-def cleanup_quantity(dataframe):
-    dataframe = dataframe[dataframe['quantity'] > 0]
-    dataframe.reset_index(inplace=True, drop=True)
-    dataframe = dataframe[dataframe['quantity'] < 6]
-    return dataframe
-
-
-def cleanup_price(dataframe, allowed_price_counts=lambda item_size: item_size > 100):
-    dataframe = dataframe[dataframe['price'] > 0]
-    dataframe.reset_index(inplace=True, drop=True)
-    # group by price and remove prices with count < 100
-    allowed_prices = group_item_index(dataframe, 'price', allowed_price_counts)
-    dataframe = dataframe.iloc[allowed_prices]
-    return dataframe
-
-
-def cleanup_rrp(dataframe, allowed_rrp_counts=lambda item_size: item_size > 100):
-    dataframe = dataframe[dataframe['rrp'] > 0]
-    dataframe.reset_index(inplace=True, drop=True)
-    allowed_rrps = group_item_index(dataframe, 'rrp', allowed_rrp_counts)
-    dataframe = dataframe.iloc[allowed_rrps]
-    return dataframe
-
-
-def cleanup_sizecode(dataframe, allowed_sizecodes_counts=lambda item_size: item_size > 2000):
-    dataframe.reset_index(inplace=True, drop=True)
-    allowed_sizecodes = group_item_index(dataframe, 'sizeCode', allowed_sizecodes_counts)
-    return dataframe.iloc[allowed_sizecodes]
-
-
-def cleanup_articleid(dataframe, allowed_articleid_counts=lambda item_size: item_size > 20):
-    dataframe.reset_index(inplace=True, drop=True)
-    allowed_articleid = group_item_index(dataframe, 'articleID', allowed_articleid_counts)
-    return dataframe.iloc[allowed_articleid]
 
 
 def filter_nasty_customers(dataframe, condition):
@@ -163,17 +130,6 @@ def show_most_unwanted_item(grouped_items, condition):
         if condition(returned_item):
             nasty_items.append(name)
     return nasty_items
-
-
-def group_item_index(dataframe, column, condition):
-    grouped_items = dataframe[column].groupby(dataframe[column])
-    allowed_items = []
-    for name, group in grouped_items:
-        indexes = [index for index in group.index]
-        group_part_size = len(indexes)
-        if condition(group_part_size):
-            allowed_items.append(indexes)
-    return reduce(operator.add, allowed_items)
 
 
 def convert_items_to_numeric_values(dataframe, column, map_function):
@@ -233,8 +189,9 @@ if __name__ == '__main__':
     # )
     data_loader = DataLoader()
     df_train = data_loader.load_orders_train(as_ndarray=False)
+
     data_cleaner = DataCleaner(df_train)
-    data_cleaner.cleanup_quantity()
-    data_cleaner.cleanup_price()
-    data_cleaner.cleanup_rrp()
-    print(data_cleaner.df)
+    # data_cleaner.cleanup_quantity()
+    # data_cleaner.cleanup_price()
+    # data_cleaner.cleanup_rrp()
+    # print(data_cleaner.df.head())

@@ -98,10 +98,34 @@ class DataCleaner(object):
                 yield grouped_items.index[index]
 
 
-def preprocess_data(df_train, df_test):
-    df_train, article_id_map = convert_items_to_numeric_values(df_train, Column.article_id.value)
-    df_train, customer_id_map = convert_items_to_numeric_values(df_train, Column.customer_id.value)
-    df_train, size_code_map = convert_items_to_numeric_values(df_train, Column.size_code.value)
+class DataTransformer(object):
+    def __init__(self, df):
+        self.df = df
+
+    def transform_known_cols(self):
+        self.convert_col_values_to_numeric(Column.article_id.value)
+        self.convert_col_values_to_numeric(Column.customer_id.value)
+        self.convert_col_values_to_numeric(Column.customer_id.value)
+
+    def convert_col_values_to_numeric(self, column):
+        self.convert_col_values(column, map_func=self.map_items_to_numeric_values)
+
+    def convert_col_values(self, column, map_func):
+        distinct_items_map = map_func(self.df, column)
+        self.df[column] = self.df[column].map(lambda column_value: distinct_items_map.get(column_value))
+
+    @staticmethod
+    def map_items_to_numeric_values(df, column):
+        distinct_items = df[column].unique()
+        converted_distinct_items = {value: key for key, value in enumerate(distinct_items)}
+        return converted_distinct_items
+
+
+def preprocess_data(df):
+    data_cleaner = DataCleaner(df)
+    data_cleaner.process_cleanup()
+    data_transformer = DataTransformer(df)
+    data_transformer.transform_known_cols()
 
 
 def cleanup_data(dataframe):
@@ -130,18 +154,6 @@ def show_most_unwanted_item(grouped_items, condition):
         if condition(returned_item):
             nasty_items.append(name)
     return nasty_items
-
-
-def convert_items_to_numeric_values(dataframe, column, map_function):
-    distinct_items_map = map_function(dataframe, column)
-    dataframe[column] = dataframe[column].map(lambda column_value: distinct_items_map.get(column_value))
-    return dataframe, distinct_items_map
-
-
-def map_items_to_numeric_values(dataframe, column):
-    distinct_items = dataframe[column].unique()
-    converted_distinct_items = {value: key for key, value in enumerate(distinct_items)}
-    return converted_distinct_items
 
 
 def convert_dataframe2nparray(df, *columns):
@@ -174,24 +186,3 @@ def split_test_train(df, test_size):
     df_train = df[split_index + 1:].copy()
     df_test = df[:split_index].copy()
     return df_train, df_test
-
-
-if __name__ == '__main__':
-    # data_df = load_orders_train()
-    # data_df = preprocess_data(data_df)
-    # for nullable in check_isnull(data_df,
-    #                              ['articleID', 'colorCode', 'sizeCode', 'quantity', 'price', 'rrp', 'customerID']):
-    #     print(nullable)
-    # export_dataframe_as_nparray(
-    #     'orders_train',
-    #     data_df,
-    #     'articleID', 'colorCode', 'sizeCode', 'quantity', 'price', 'rrp', 'customerID'
-    # )
-    data_loader = DataLoader()
-    df_train = data_loader.load_orders_train(as_ndarray=False)
-
-    data_cleaner = DataCleaner(df_train)
-    # data_cleaner.cleanup_quantity()
-    # data_cleaner.cleanup_price()
-    # data_cleaner.cleanup_rrp()
-    # print(data_cleaner.df.head())

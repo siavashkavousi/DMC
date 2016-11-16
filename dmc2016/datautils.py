@@ -124,23 +124,14 @@ class DataTransformer(object):
 def preprocess_data(df):
     data_cleaner = DataCleaner(df)
     data_cleaner.process_cleanup()
-    data_transformer = DataTransformer(df)
+    data_transformer = DataTransformer(data_cleaner.df)
     data_transformer.transform_known_cols()
+    return data_transformer.df
 
 
 def cleanup_data(dataframe):
     dataframe = compare_columns(dataframe, 'price', 'rrp', lambda x, y: x <= y)
     return dataframe
-
-
-def filter_nasty_customers(dataframe, condition):
-    grouped_items = dataframe['returnQuantity'].groupby(dataframe['customerID'])
-    return show_most_unwanted_item(grouped_items, condition)
-
-
-def filter_most_unwanted_colors(dataframe, condition):
-    grouped_items = dataframe['returnQuantity'].groupby(dataframe['colorCode'])
-    return show_most_unwanted_item(grouped_items, condition)
 
 
 def compare_columns(dataframe, column1, column2, condition):
@@ -186,3 +177,16 @@ def split_test_train(df, test_size):
     df_train = df[split_index + 1:].copy()
     df_test = df[:split_index].copy()
     return df_train, df_test
+
+
+if __name__ == '__main__':
+    data_loader = DataLoader()
+    df = data_loader.load_orders_train(False)
+    grouped_items = df.groupby(Column.color_code.value)
+    nasty_items = []
+    for name, group in grouped_items:
+        print(name)
+        returned_item = group.groupby(Column.return_quantity.value).size()
+        print(returned_item)
+        # if condition(returned_item):
+        #     nasty_items.append(name)

@@ -79,6 +79,7 @@ class DataCleaner(object):
             self.df = self.df[self.df[Column.price.value] != blocked_price]
 
     def cleanup_rrp(self, blocked_rrp_counts=lambda item_size: item_size < 150):
+        self.df = self.df[pd.notnull(self.df[Column.rrp.value])]
         self.df = self.df[self.df[Column.rrp.value] > 0]
         for blocked_rrp in self._apply_on_groups_items(Column.rrp.value, blocked_rrp_counts):
             self.df = self.df[self.df[Column.rrp.value] != blocked_rrp]
@@ -105,7 +106,7 @@ class DataTransformer(object):
     def transform_known_cols(self):
         self.convert_col_values_to_numeric(Column.article_id.value)
         self.convert_col_values_to_numeric(Column.customer_id.value)
-        self.convert_col_values_to_numeric(Column.customer_id.value)
+        self.convert_col_values_to_numeric(Column.size_code.value)
 
     def convert_col_values_to_numeric(self, column):
         self.convert_col_values(column, map_func=self.map_items_to_numeric_values)
@@ -177,16 +178,3 @@ def split_test_train(df, test_size):
     df_train = df[split_index + 1:].copy()
     df_test = df[:split_index].copy()
     return df_train, df_test
-
-
-if __name__ == '__main__':
-    data_loader = DataLoader()
-    df = data_loader.load_orders_train(False)
-    grouped_items = df.groupby(Column.color_code.value)
-    nasty_items = []
-    for name, group in grouped_items:
-        print(name)
-        returned_item = group.groupby(Column.return_quantity.value).size()
-        print(returned_item)
-        # if condition(returned_item):
-        #     nasty_items.append(name)

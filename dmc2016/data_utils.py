@@ -13,6 +13,7 @@ class Dataset(Enum):
     orders_train = 'orders_train'
     orders_class = 'orders_class'
     real_class = 'real_class'
+    test_data = 'test_data'
 
 
 class Column(Enum):
@@ -40,14 +41,17 @@ class DataLoader(object):
     def __init__(self):
         self.path = PATH + '{name}{extension}.txt'
 
-    def load_orders_train(self, as_ndarray):
+    def load_orders_train(self, as_ndarray=False):
         return self._load_data(Dataset.orders_train.value, as_ndarray)
 
-    def load_orders_class(self, as_ndarray):
+    def load_orders_class(self, as_ndarray=False):
         return self._load_data(Dataset.orders_class.value, as_ndarray)
 
     def load_real_class(self):
         return self._load_data(Dataset.real_class.value, False)
+
+    def load_test_data(self):
+        return self._load_data(Dataset.test_data.value, False)
 
     def _load_data(self, dataset_name, as_ndarray):
         if as_ndarray:
@@ -99,11 +103,11 @@ class DataCleaner(object):
                 yield grouped_items.index[index]
 
 
-class DataTransformer(object):
+class DataConverter(object):
     def __init__(self, df):
         self.df = df
 
-    def transform_known_cols(self):
+    def convert_known_cols(self):
         self.convert_col_values_to_numeric(Column.article_id.value)
         self.convert_col_values_to_numeric(Column.customer_id.value)
         self.convert_col_values_to_numeric(Column.size_code.value)
@@ -122,12 +126,33 @@ class DataTransformer(object):
         return converted_distinct_items
 
 
+class DataTransformer(object):
+    def __init__(self, df):
+        self.df = df
+
+    def start_date_conversion(self):
+        year, month, day = self._separate_date()
+        self.df = pd.concat([self.df, self._convert_date_to_dataframe(year, month, day)], axis=1)
+
+    def _separate_date(self):
+        date = self.df['orderDate'].str.split('-')
+        year = [i[0] for i in date]
+        month = [i[1] for i in date]
+        day = [i[2] for i in date]
+        return year, month, day
+
+    @staticmethod
+    def _convert_date_to_dataframe(year, month, day):
+        d = {'year': year, 'month': month, 'day': day}
+        return pd.DataFrame(d)
+
+
 def preprocess_data(df):
     data_cleaner = DataCleaner(df)
     data_cleaner.process_cleanup()
-    data_transformer = DataTransformer(data_cleaner.df)
-    data_transformer.transform_known_cols()
-    return data_transformer.df
+    data_converter = DataConverter(data_cleaner.df)
+    data_converter.convert_known_cols()
+    return data_converter.df
 
 
 def cleanup_data(dataframe):
@@ -137,15 +162,6 @@ def cleanup_data(dataframe):
 
 def compare_columns(dataframe, column1, column2, condition):
     return dataframe[condition(dataframe[column1], dataframe[column2])]
-
-
-def show_most_unwanted_item(grouped_items, condition):
-    nasty_items = []
-    for name, group in grouped_items:
-        returned_item = sum(group)
-        if condition(returned_item):
-            nasty_items.append(name)
-    return nasty_items
 
 
 def convert_dataframe2nparray(df, *columns):
@@ -173,7 +189,7 @@ def check_isnull(dataframe, columns):
             yield {column: True}
 
 
-def split_test_train(df, test_size):
+def split_train_test(df, test_size):
     split_index = floor(df.shape[0] * test_size)
     df_train = df[split_index + 1:].copy()
     df_test = df[:split_index].copy()
